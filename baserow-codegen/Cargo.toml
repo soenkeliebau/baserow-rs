@@ -3,6 +3,7 @@ name = "baserow-codegen"
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
 serde_json =  { workspace = true }
 serde =  { workspace = true }
@@ -15,5 +16,4 @@ syn = "2.0.101"
 prettyplease = "0.2.33"
 strum = "0.27"
 strum_macros = "0.27.1"
-
-
+baserow-client = { git = "https://github.com/soenkeliebau/baserow-rs.git", branch = "main"}
