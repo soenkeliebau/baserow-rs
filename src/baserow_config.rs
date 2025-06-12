@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use snafu::prelude::*;
 use snafu::{ResultExt, Snafu};
 use std::fs;
+use syn::Data;
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -10,14 +11,21 @@ pub enum Error {
         source: std::io::Error,
         path: String,
     },
-    #[snafu(display("error parsing config file"))]
+    #[snafu(display("error parsing config file: {source}"))]
     ParseConfigFile { source: serde_json::Error },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub  struct Database {
+    pub name: String,
+    pub id: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BaserowConfig {
-    token: String,
-    pub databases: Vec<usize>,
+    pub token: String,
+    pub databases: Vec<Database>,
+    pub target_directory: String,
 }
 
 impl BaserowConfig {
