@@ -20,52 +20,125 @@ The code generator is intended to be used as a cargo plugin and can be installed
 |===
 |Baserow |Rust |Comments
 
-|Text
+|Single line text
 |Option<String>
 |
 
-|Text
+|Long text
 |Option<String>
-|Column 3, row 2
+|
 
-|Number (non negative, no decimals)
+|Link to table
+| Unsupported
+|
+
+|Number
 |Option<usize>
-|Column 3, row 3
+Option<isize>
+Option<f64>
+|The concrete implementation is chosen based on the configuration of the field, most notably, whether the number has decimal places and can be negative.
 
-|Number (negative, no decimals)
-|Option<isize>
-|Column 3, row 4
+|Rating
+|Unsupported
+|
 
-|Number (with decimals)
-|Option<f64>
-|Column 3, row 5
-
-|Email
-|Option<String>
-|Column 3, row 6
+|Boolean
+|Option<bool>
+|
 
 |Date
 |Option<String>
-|Column 3, row 7
+|
 
-|Single Select
+|Last modified
+|Option<String>
+|
+
+|Created on
+|Option<String>
+|
+
+|URL
+|Option<String>
+|
+
+|Email
+|Option<String>
+|
+
+|File
+|
+|
+
+|Single select
 |Option<Enum>
-|An enum is generated that has a variant per possible value of the single select field.
+|An enum is generated with the name `<Tablename><Fieldname>` and a variant per possible value of the select field is added.
 
-|Multi Select
+|Multiple select
 |Option<Vec<Enum>>
-|An enum is generated that has a variant per possible value of the single select field.
+|An enum is generated with the name `<Tablename><Fieldname>` and a variant per possible value of the select field is added.
+
+|Phone number
+|Option<Enum>
+|
+
+|Formula
+|Unsupported
+|
+
+|Lookup
+|Unsupported
+|
+
+|Collaborator
+|Option<String>
+|
+
+|Count
+|Option<usize>
+|
+
+|Rollup
+|Unsupported
+|
+
+|Created by
+|Unsupported
+|
+
+|Last modified by
+|Unsupported
+|
+
+|Duration
+|
+|
+
+|Autonumber
+|Option<usize>
+|
+
+|UUID
+|Option<String>
+|
+
+|Last modified
+|Option<String>
+|
+
+|Created on
+|
+|
+
+|Password
+|
+|
+
+|AI
+|
+|
 
 |===
-
-Text -> String
-Long Text -> String
-Number -> depends on configuration: can be negative -> isize, cannot be negative -> usize, has decimal points -> f64
-Single Select -> Enum
-Mail -> String
-Rollup -> not supported
-Table Link -> not supported
-...
 
 
 == Baserow Idiosyncracies
