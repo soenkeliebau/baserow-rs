@@ -35,21 +35,21 @@ impl UrlBuilder {
     }
 
     pub fn get_list_records_url(&self, table_id: usize) -> Result<Url, Error> {
-        Ok(self
+        self
             .get_record_url()
             .join(&table_id.to_string())
             .context(BuildUrlSnafu {
                 action: "listing records",
-            })?)
+            })
     }
 
     pub fn get_create_record_url(&self, table_id: usize) -> Result<Url, Error> {
-        Ok(self
+        self
             .get_record_url()
             .join(&table_id.to_string())
             .context(BuildUrlSnafu {
                 action: "creating record",
-            })?)
+            })
     }
 
     pub fn get_find_record_url(
@@ -58,21 +58,21 @@ impl UrlBuilder {
         field_id: &str,
         id: &str,
     ) -> Result<Url, Error> {
-        Ok(self
+        self
             .get_create_record_url(table_id)?
             .join(&format!("?filter__{}__equal={}", field_id, id))
             .context(BuildUrlSnafu {
                 action: "finding record by id",
-            })?)
+            })
     }
 
     pub fn get_update_record_url(&self, table_id: usize, record_id: usize) -> Result<Url, Error> {
-        Ok(self
+        self
             .get_create_record_url(table_id)?
             .join(&record_id.to_string())
             .context(BuildUrlSnafu {
                 action: "updating record by id",
-            })?)
+            })
     }
 }
 

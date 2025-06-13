@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::{env, fs};
 
 static LIST_TABLES_URL: &str = "https://api.baserow.io/api/database/tables/all-tables/";
 static LIST_TABLE_FIELDS_URL: &str = "https://api.baserow.io/api/database/fields/table/";
@@ -19,15 +18,6 @@ static LIST_TABLE_FIELDS_URL: &str = "https://api.baserow.io/api/database/fields
 pub struct BaserowConfig {
     token: String,
     database: usize,
-}
-
-pub fn get_baserow_config() -> BaserowConfig {
-    serde_json::from_str::<BaserowConfig>(&fs::read_to_string("baserow_config.json").unwrap())
-        .unwrap()
-}
-
-pub fn get_database() -> String {
-    env::var("BASEROW_DB").unwrap()
 }
 
 pub struct Generator {
@@ -43,6 +33,7 @@ struct Table {
     pub fields: Option<Vec<TableField>>,
 }
 
+#[allow(dead_code)]
 pub enum Identifier {
     UnsignedNumber { id: Option<usize> },
     SignedNumber { id: Option<isize> },
@@ -51,6 +42,7 @@ pub enum Identifier {
 }
 
 impl Identifier {
+    #[allow(dead_code)]
     pub fn get_string(&self) -> Option<String> {
         match self {
             Identifier::SignedNumber { id } => id.as_ref().map(|id| id.to_string()),

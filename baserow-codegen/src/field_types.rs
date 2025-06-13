@@ -339,6 +339,7 @@ impl TableField {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_description(&self) -> &Option<String> {
         match self {
             TableField::Text { shared_fields, .. } => &shared_fields.description,
