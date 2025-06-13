@@ -147,11 +147,13 @@ impl Generator {
         for database in databases {
             let module_name = cleanup_name(&database.name).to_case(Snake);
             // Write entry for file in mod.rs
-            mod_file.write(format!("mod {};", module_name).as_bytes()).unwrap();
+            mod_file
+                .write(format!("mod {};", module_name).as_bytes())
+                .unwrap();
             mod_file.write("\n".as_bytes());
 
             let mut structs = quote! {
-                        use crate::baserow::client::{BaserowObject, Identifier};
+            use baserow_client::client::{BaserowObject, Identifier};
             use serde::de::Visitor;
             use serde::{de, Deserialize, Deserializer, Serialize};
             use std::fmt;
