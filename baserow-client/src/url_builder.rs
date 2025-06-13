@@ -37,7 +37,7 @@ impl UrlBuilder {
     pub fn get_list_records_url(&self, table_id: usize) -> Result<Url, Error> {
         self
             .get_record_url()
-            .join(&table_id.to_string())
+            .join(&format!("{}/", &table_id.to_string()))
             .context(BuildUrlSnafu {
                 action: "listing records",
             })
@@ -46,7 +46,7 @@ impl UrlBuilder {
     pub fn get_create_record_url(&self, table_id: usize) -> Result<Url, Error> {
         self
             .get_record_url()
-            .join(&table_id.to_string())
+            .join(&format!("{}/",table_id.to_string()))
             .context(BuildUrlSnafu {
                 action: "creating record",
             })
@@ -69,7 +69,7 @@ impl UrlBuilder {
     pub fn get_update_record_url(&self, table_id: usize, record_id: usize) -> Result<Url, Error> {
         self
             .get_create_record_url(table_id)?
-            .join(&record_id.to_string())
+            .join(&format!("{}/", record_id.to_string()))
             .context(BuildUrlSnafu {
                 action: "updating record by id",
             })

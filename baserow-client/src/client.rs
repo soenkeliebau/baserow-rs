@@ -3,7 +3,7 @@ use reqwest::Client as ReqwestClient;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use snafu::{OptionExt, ResultExt, Snafu};
+use snafu::{ensure, OptionExt, ResultExt, Snafu};
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -31,6 +31,11 @@ pub enum Error {
     },
     #[snafu(display("Object has no id, cannot update"))]
     NoIdentifier {},
+    #[snafu(display("Server returned status [{status}]: {msg}"))]
+    ResponseStatus {
+        status: String,
+        msg: String,
+    },
 }
 
 pub struct Client {
@@ -112,8 +117,8 @@ impl Client {
             .url_builder
             .get_list_records_url(T::get_static_table_id())
             .context(UrlBuilderSnafu)?;
-
-        Ok(self
+        println!("Calling url: {}", url);
+        let response = self
             .client
             .get(url.as_ref())
             .send()
@@ -121,14 +126,17 @@ impl Client {
             .context(ReqwestWithUrlSnafu {
                 msg: "send list request",
                 url: url.as_ref(),
-            })?
-            .json::<SearchResult<T>>()
-            .await
-            .context(ReqwestSnafu {
-                msg: "deserialize list response",
-            })?
-            .results)
-    }
+            })?;
+        ensure!(response.status().is_success(), ResponseStatusSnafu {status: response.status().to_string(),msg: response.text().await.unwrap()});
+
+            Ok(response
+                .json::<SearchResult<T>>()
+                .await
+                .context(ReqwestSnafu {
+                    msg: "deserialize list response",
+                })?
+                .results)
+            }
 
     pub async fn create<T>(&self, obj: &T) -> Result<(), Error>
     where
