@@ -16,8 +16,6 @@ use std::{env, fs};
 
 static LIST_TABLES_URL: &str = "https://api.baserow.io/api/database/tables/all-tables/";
 static LIST_TABLE_FIELDS_URL: &str = "https://api.baserow.io/api/database/fields/table/";
-static CREATE_RECORD_URL: &str = "https://api.baserow.io/api/database/rows/table/";
-static LIST_RECORD_URL: &str = "https://api.baserow.io/api/database/rows/table/";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BaserowConfig {
@@ -34,15 +32,8 @@ pub fn get_database() -> String {
     env::var("BASEROW_DB").unwrap()
 }
 
-pub struct Client {
+pub struct Generator {
     client: ReqwestClient,
-}
-
-pub trait BaserowObject {
-    fn get_static_table_id() -> usize;
-    fn get_table_id(&self) -> usize;
-    fn get_id(&self) -> Identifier;
-    fn get_table_id_field(&self) -> String;
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -95,7 +86,7 @@ struct IdOnly {
     pub id: usize,
 }
 
-impl Client {
+impl Generator {
     pub fn new(token: &str) -> Self {
         let mut default_headers = HeaderMap::new();
         default_headers.insert(
@@ -143,96 +134,6 @@ impl Client {
         } else {
             None
         }
-    }
-
-    pub async fn list<T>(&self) -> Vec<T>
-    where
-        T: BaserowObject + Serialize + DeserializeOwned,
-    {
-        let list_url = format!("{CREATE_RECORD_URL}{}/", T::get_static_table_id());
-
-        let response = self
-            .client
-            .get(list_url)
-            .send()
-            .await
-            .unwrap()
-            .json::<SearchResult<T>>()
-            .await
-            .unwrap();
-
-        Vec::new()
-    }
-
-    pub async fn create<T>(&self, obj: &T)
-    where
-        T: BaserowObject + Serialize,
-    {
-        let create_url = format!("{CREATE_RECORD_URL}{}/", obj.get_table_id().to_string());
-
-        let request = self
-            .client
-            .post(create_url)
-            .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_string(obj).unwrap())
-            .build()
-            .unwrap();
-
-        println!("Request\n{:?}", request);
-        let response = self.client.execute(request).await.unwrap();
-
-        println!("{:?}", response);
-        println!("{:?}", response.text().await.unwrap())
-    }
-
-    pub async fn update<T>(&self, obj: &T)
-    where
-        T: BaserowObject + Serialize,
-    {
-        // Need to find the rowid for the object first
-        let id: String = obj.get_id().get_string().unwrap();
-        let find_url = format!(
-            "{LIST_RECORD_URL}{}/?filter__{}__equal={}",
-            obj.get_table_id(),
-            obj.get_table_id_field(),
-            id
-        );
-
-        println!("{:?}", self.client);
-        let mut search_result = self
-            .client
-            .get(find_url)
-            .send()
-            .await
-            .unwrap()
-            .json::<SearchResult<IdOnly>>()
-            .await
-            .unwrap();
-
-        if !search_result.count.eq(&1) {
-            panic!("Should only have found one object for primary id!");
-        }
-
-        let id: String = search_result.results.first().unwrap().id.to_string();
-
-        let update_url = format!(
-            "{CREATE_RECORD_URL}{}/{}/",
-            obj.get_table_id().to_string(),
-            id
-        );
-        println!("{}", update_url);
-
-        println!("{:?}", self.client);
-        let response = self
-            .client
-            .patch(update_url)
-            .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_string(obj).unwrap())
-            .send()
-            .await
-            .unwrap();
-        println!("{:?}", response);
-        println!("{:?}", response.text().await.unwrap());
     }
 
     pub async fn generate_structs(&self, databases: &Vec<Database>, target_path: &Path) {

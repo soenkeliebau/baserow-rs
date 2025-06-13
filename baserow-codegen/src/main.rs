@@ -3,11 +3,11 @@ use std::path::Path;
 use crate::baserow_config::BaserowConfig;
 use snafu::{ResultExt, Snafu};
 use std::process::exit;
-use crate::client::Client;
+use crate::generator::Generator;
 
 mod baserow_config;
 mod field_types;
-mod client;
+mod generator;
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -31,7 +31,7 @@ async fn main() {
 
 async fn run() -> Result<(), Error> {
     let config = BaserowConfig::new().context(ConfigSnafu)?;
-    let client = Client::new(&config.token);
+    let client = Generator::new(&config.token);
 
     fs::create_dir_all(&config.target_directory).context(CreateTargetDirSnafu {path: &config.target_directory.to_string()})?;
     let target_path = Path::new(&config.target_directory);
