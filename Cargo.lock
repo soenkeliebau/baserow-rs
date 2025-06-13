@@ -59,6 +59,7 @@ dependencies = [
  "serde_json",
  "snafu",
  "tokio",
+ "url",
 ]
 
 [[package]]
