@@ -444,10 +444,7 @@ impl TableField {
             }
             TableField::Rating { .. } => "String".to_string(),
             TableField::Boolean { .. } => "bool".to_string(),
-            TableField::Date { date_include_time, date_time_format, .. } => {match *date_include_time {
-                true => {"DateTime".to_string()}
-                false => {"Date".to_string()}
-            }},
+            TableField::Date { .. } => "DateTime<Utc>".to_string(),
             TableField::LastModified { .. } => "String".to_string(),
             TableField::LastModifiedBy { .. } => "String".to_string(),
             TableField::CreatedOn { .. } => "String".to_string(),
