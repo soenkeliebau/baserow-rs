@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use snafu::prelude::*;
 use snafu::{ResultExt, Snafu};
 
 #[derive(Snafu, Debug)]
