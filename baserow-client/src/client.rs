@@ -1,8 +1,8 @@
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
-use reqwest::Client as ReqwestClient;
 use crate::url_builder::UrlBuilder;
+use reqwest::Client as ReqwestClient;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 pub struct Client {
     client: ReqwestClient,
@@ -61,6 +61,7 @@ impl Client {
                 .default_headers(default_headers)
                 .build()
                 .unwrap(),
+            url_builder: UrlBuilder::new(base_url),
         }
     }
 
@@ -68,31 +69,27 @@ impl Client {
     where
         T: BaserowObject + Serialize + DeserializeOwned,
     {
-        
-        let list_url = format!("{CREATE_RECORD_URL}{}/", T::get_static_table_id());
-
-        let response = self
-            .client
-            .get(list_url)
+        self.client
+            .get(
+                self.url_builder
+                    .get_list_records_url(T::get_static_table_id()),
+            )
             .send()
             .await
             .unwrap()
             .json::<SearchResult<T>>()
             .await
-            .unwrap();
-
-        Vec::new()
+            .unwrap()
+            .results
     }
 
     pub async fn create<T>(&self, obj: &T)
     where
         T: BaserowObject + Serialize,
     {
-        let create_url = format!("{CREATE_RECORD_URL}{}/", obj.get_table_id().to_string());
-
         let request = self
             .client
-            .post(create_url)
+            .post(self.url_builder.get_create_record_url(obj.get_table_id()))
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(obj).unwrap())
             .build()
@@ -111,18 +108,15 @@ impl Client {
     {
         // Need to find the rowid for the object first
         let id: String = obj.get_id().get_string().unwrap();
-        self.url_builder.get_find_record_url(obj.get_table_id(), obj.get_table_id_field())
-        let find_url = format!(
-            "{LIST_RECORD_URL}{}/?filter__{}__equal={}",
-            obj.get_table_id(),
-            obj.get_table_id_field(),
-            id
-        );
 
         println!("{:?}", self.client);
         let mut search_result = self
             .client
-            .get(find_url)
+            .get(self.url_builder.get_find_record_url(
+                obj.get_table_id(),
+                &obj.get_table_id_field(),
+                &id,
+            ))
             .send()
             .await
             .unwrap()
@@ -135,10 +129,13 @@ impl Client {
         }
 
         let id = search_result.results.first().unwrap().id;
-        
+
         let response = self
             .client
-            .patch(self.url_builder.get_create_record_url(obj.get_table_id(), id))
+            .patch(
+                self.url_builder
+                    .get_update_record_url(obj.get_table_id(), id),
+            )
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(obj).unwrap())
             .send()
