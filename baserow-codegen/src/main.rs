@@ -23,7 +23,7 @@ async fn main() {
     match run().await {
         Ok(_) => exit(0),
         Err(e) => {
-            eprint!("{}", e.to_string());
+            eprint!("{}", e);
             exit(1);
         }
     };

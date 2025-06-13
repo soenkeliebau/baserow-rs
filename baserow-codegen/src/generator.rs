@@ -1,14 +1,12 @@
 use crate::baserow_config::Database;
 use crate::field_types::{TableField, cleanup_name};
-use convert_case::Case::{Pascal, Snake};
+use convert_case::Case::Snake;
 use convert_case::{Case, Casing};
 use quote::__private::TokenStream;
-use quote::{TokenStreamExt, format_ident, quote};
+use quote::{format_ident, quote};
 use reqwest::Client as ReqwestClient;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use serde::de::DeserializeOwned;
+use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -223,7 +221,7 @@ impl Generator {
 
 fn get_primary_field(fields: Option<&Vec<TableField>>) -> &TableField {
     if let Some(fields) = fields {
-        let mut filtered_primary_fields = fields
+        let filtered_primary_fields = fields
             .iter()
             .filter(|field| field.is_primary())
             .collect::<Vec<&TableField>>();

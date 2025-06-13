@@ -410,12 +410,10 @@ impl TableField {
             } => {
                 if number_decimal_places.gt(&0) {
                     Some(quote! {, deserialize_with = "float_or_null"})
+                } else if *number_negative {
+                    Some(quote! {, deserialize_with = "isize_or_null"})
                 } else {
-                    if *number_negative {
-                        Some(quote! {, deserialize_with = "isize_or_null"})
-                    } else {
-                        Some(quote! {, deserialize_with = "usize_or_null"})
-                    }
+                    Some(quote! {, deserialize_with = "usize_or_null"})
                 }
             }
             TableField::Count { .. } => Some(quote! {, deserialize_with = "usize_or_null"}),
@@ -437,12 +435,10 @@ impl TableField {
             } => {
                 if number_decimal_places.gt(&0) {
                     "f64".to_string()
+                } else if *number_negative {
+                    "isize".to_string()
                 } else {
-                    if *number_negative {
-                        "isize".to_string()
-                    } else {
-                        "usize".to_string()
-                    }
+                    "usize".to_string()
                 }
             }
             TableField::Rating { .. } => "String".to_string(),
