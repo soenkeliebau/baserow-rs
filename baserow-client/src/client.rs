@@ -1,8 +1,23 @@
-use crate::url_builder::UrlBuilder;
-use reqwest::Client as ReqwestClient;
+use crate::client::Error::Reqwest;
+use crate::url_builder::{Error as UrlBuilderError, UrlBuilder};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use reqwest::{Client as ReqwestClient, Request};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use snafu::{ResultExt, Snafu};
+
+#[derive(Snafu, Debug)]
+pub enum Error {
+    #[snafu(display("Url operation failed:  {source}"))]
+    UrlBuilder { source: UrlBuilderError },
+    #[snafu(display("Error handling request:  {source}"))]
+    Reqwest { source: reqwest::Error },
+    #[snafu(display("Invalid header value specified [{value}]:  {source}"))]
+    Token {
+        source: http::header::InvalidHeaderValue,
+        value: String,
+    },
+}
 
 pub struct Client {
     client: ReqwestClient,
@@ -48,21 +63,22 @@ struct IdOnly {
 }
 
 impl Client {
-    pub fn new(token: &str, base_url: Option<&str>) -> Self {
+    pub fn new(token: &str, base_url: Option<&str>) -> Result<Self, Error> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Token {}", token)).unwrap(),
+            HeaderValue::from_str(&format!("Token {}", token))
+                .context(TokenSnafu { value: token })?,
         );
         default_headers.insert(ACCEPT, HeaderValue::from_str("application/json").unwrap());
 
-        Self {
+        Ok(Self {
             client: ReqwestClient::builder()
                 .default_headers(default_headers)
                 .build()
-                .unwrap(),
-            url_builder: UrlBuilder::new(base_url),
-        }
+                .context(ReqwestSnafu)?,
+            url_builder: UrlBuilder::new(base_url).context(UrlBuilderSnafu {})?,
+        })
     }
 
     pub async fn list<T>(&self) -> Vec<T>
