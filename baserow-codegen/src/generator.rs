@@ -148,9 +148,9 @@ impl Generator {
             let module_name = cleanup_name(&database.name).to_case(Snake);
             // Write entry for file in mod.rs
             mod_file
-                .write(format!("mod {};", module_name).as_bytes())
+                .write_all(format!("pub mod {};", module_name).as_bytes())
                 .unwrap();
-            mod_file.write("\n".as_bytes());
+            mod_file.write_all("\n".as_bytes()).unwrap();
 
             let mut structs = quote! {
             use baserow_client::client::{BaserowObject, Identifier};
@@ -214,8 +214,9 @@ impl Generator {
 
             // Print formated code to stdout
             let syntax_tree = syn::parse_file(&structs.to_string()).unwrap();
-            code_file.write(prettyplease::unparse(&syntax_tree).as_bytes());
+            code_file.write_all(prettyplease::unparse(&syntax_tree).as_bytes()).unwrap();
             code_file.flush().unwrap();
+            mod_file.flush().unwrap();
         }
     }
 }

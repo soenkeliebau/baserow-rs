@@ -1,22 +1,36 @@
-use crate::client::Error::Reqwest;
 use crate::url_builder::{Error as UrlBuilderError, UrlBuilder};
+use reqwest::Client as ReqwestClient;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use reqwest::{Client as ReqwestClient, Request};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use snafu::{ResultExt, Snafu};
+use snafu::{OptionExt, ResultExt, Snafu};
 
 #[derive(Snafu, Debug)]
 pub enum Error {
     #[snafu(display("Url operation failed:  {source}"))]
     UrlBuilder { source: UrlBuilderError },
-    #[snafu(display("Error handling request:  {source}"))]
-    Reqwest { source: reqwest::Error },
+    #[snafu(display("Failed to {msg}:  {source}"))]
+    Reqwest { source: reqwest::Error, msg: String },
+
+    #[snafu(display("Failed to {msg}:  {source}"))]
+    ReqwestWithUrl {
+        source: reqwest::Error,
+        msg: String,
+        url: String,
+    },
+
     #[snafu(display("Invalid header value specified [{value}]:  {source}"))]
-    Token {
+    Header {
         source: http::header::InvalidHeaderValue,
         value: String,
     },
+    #[snafu(display("Failed to serialize {msg}: {source})"))]
+    SerializeRequest {
+        source: serde_json::Error,
+        msg: String,
+    },
+    #[snafu(display("Object has no id, cannot update"))]
+    NoIdentifier {},
 }
 
 pub struct Client {
@@ -64,81 +78,119 @@ struct IdOnly {
 
 impl Client {
     pub fn new(token: &str, base_url: Option<&str>) -> Result<Self, Error> {
+        // Build default headers to be included with every request later on
         let mut default_headers = HeaderMap::new();
         default_headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Token {}", token))
-                .context(TokenSnafu { value: token })?,
+                .context(HeaderSnafu { value: token })?,
         );
-        default_headers.insert(ACCEPT, HeaderValue::from_str("application/json").unwrap());
+        // This really shouldn't fail, but since we have the error variant .. why not?
+        default_headers.insert(
+            ACCEPT,
+            HeaderValue::from_str("application/json").context(HeaderSnafu {
+                value: "application/json",
+            })?,
+        );
 
         Ok(Self {
             client: ReqwestClient::builder()
                 .default_headers(default_headers)
                 .build()
-                .context(ReqwestSnafu)?,
+                .context(ReqwestSnafu {
+                    msg: "build client",
+                })?,
             url_builder: UrlBuilder::new(base_url).context(UrlBuilderSnafu {})?,
         })
     }
 
-    pub async fn list<T>(&self) -> Vec<T>
+    pub async fn list<T>(&self) -> Result<Vec<T>, Error>
     where
         T: BaserowObject + Serialize + DeserializeOwned,
     {
-        self.client
-            .get(
-                self.url_builder
-                    .get_list_records_url(T::get_static_table_id()),
-            )
+        let url = self
+            .url_builder
+            .get_list_records_url(T::get_static_table_id())
+            .context(UrlBuilderSnafu)?;
+
+        Ok(self
+            .client
+            .get(url.as_ref())
             .send()
             .await
-            .unwrap()
+            .context(ReqwestWithUrlSnafu {
+                msg: "send list request",
+                url: url.as_ref(),
+            })?
             .json::<SearchResult<T>>()
             .await
-            .unwrap()
-            .results
+            .context(ReqwestSnafu {
+                msg: "deserialize list response",
+            })?
+            .results)
     }
 
-    pub async fn create<T>(&self, obj: &T)
+    pub async fn create<T>(&self, obj: &T) -> Result<(), Error>
     where
         T: BaserowObject + Serialize,
     {
+        let url = self
+            .url_builder
+            .get_create_record_url(obj.get_table_id())
+            .context(UrlBuilderSnafu {})?;
+
         let request = self
             .client
-            .post(self.url_builder.get_create_record_url(obj.get_table_id()))
+            .post(url.as_ref())
             .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_string(obj).unwrap())
+            .body(serde_json::to_string(obj).context(SerializeRequestSnafu {
+                msg: obj.get_table_id().to_string(),
+            })?)
             .build()
-            .unwrap();
+            .context(ReqwestSnafu {
+                msg: "build create request",
+            })?;
 
         println!("Request\n{:?}", request);
-        let response = self.client.execute(request).await.unwrap();
+        let response = self
+            .client
+            .execute(request)
+            .await
+            .context(ReqwestWithUrlSnafu {
+                msg: "send create request",
+                url: url.as_ref(),
+            })?;
 
         println!("{:?}", response);
-        println!("{:?}", response.text().await.unwrap())
+        Ok(())
     }
 
-    pub async fn update<T>(&self, obj: &T)
+    pub async fn update<T>(&self, obj: &T) -> Result<(), Error>
     where
         T: BaserowObject + Serialize,
     {
         // Need to find the rowid for the object first
-        let id: String = obj.get_id().get_string().unwrap();
+        let id: String = obj.get_id().get_string().context(NoIdentifierSnafu)?;
 
-        println!("{:?}", self.client);
-        let mut search_result = self
+        let url = self
+            .url_builder
+            .get_find_record_url(obj.get_table_id(), &obj.get_table_id_field(), &id)
+            .context(UrlBuilderSnafu)?;
+
+        let search_result = self
             .client
-            .get(self.url_builder.get_find_record_url(
-                obj.get_table_id(),
-                &obj.get_table_id_field(),
-                &id,
-            ))
+            .get(url.as_ref())
             .send()
             .await
-            .unwrap()
+            .context(ReqwestWithUrlSnafu {
+                msg: "send update request",
+                url: url.as_ref(),
+            })?
             .json::<SearchResult<IdOnly>>()
             .await
-            .unwrap();
+            .context(ReqwestSnafu {
+                msg: "deserialize search response",
+            })?;
 
         if !search_result.count.eq(&1) {
             panic!("Should only have found one object for primary id!");
@@ -146,18 +198,24 @@ impl Client {
 
         let id = search_result.results.first().unwrap().id;
 
+        let url = self
+            .url_builder
+            .get_update_record_url(obj.get_table_id(), id)
+            .context(UrlBuilderSnafu)?;
+
         let response = self
             .client
-            .patch(
-                self.url_builder
-                    .get_update_record_url(obj.get_table_id(), id),
-            )
+            .patch(url.as_ref())
             .header(CONTENT_TYPE, "application/json")
             .body(serde_json::to_string(obj).unwrap())
             .send()
             .await
-            .unwrap();
+            .context(ReqwestWithUrlSnafu {
+                msg: "send update request",
+                url: url.as_ref(),
+            })?;
         println!("{:?}", response);
         println!("{:?}", response.text().await.unwrap());
+        Ok(())
     }
 }

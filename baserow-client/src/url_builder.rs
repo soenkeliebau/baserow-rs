@@ -19,8 +19,6 @@ impl UrlBuilder {
     // The default url for Baserow cloud
     const CLOUD_URL: &'static str = "https://api.baserow.io/";
     // API stubs to build needed endpoints from for requests
-    const LIST_TABLES_URL: &'static str = "/api/database/tables/all-tables/";
-    const LIST_TABLE_FIELDS_URL: &'static str = "/api/database/fields/table/";
     const RECORD_URL: &'static str = "/api/database/rows/table/";
 
     pub fn new(base_url: Option<&str>) -> Result<Self, Error> {
