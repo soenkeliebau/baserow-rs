@@ -129,13 +129,17 @@ impl Client {
             })?;
         ensure!(response.status().is_success(), ResponseStatusSnafu {status: response.status().to_string(),msg: response.text().await.unwrap()});
 
-            Ok(response
+        println!("{}", response.text().await.unwrap());
+        Ok(Vec::new())
+            /*Ok(response
                 .json::<SearchResult<T>>()
                 .await
                 .context(ReqwestSnafu {
                     msg: "deserialize list response",
                 })?
                 .results)
+
+             */
             }
 
     pub async fn create<T>(&self, obj: &T) -> Result<(), Error>

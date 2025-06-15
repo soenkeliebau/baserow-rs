@@ -47,7 +47,7 @@ Option<f64>
 |
 
 |Date
-|Option<String>
+|Option<DateTime<Local>>
 |
 
 |Last modified

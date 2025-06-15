@@ -151,7 +151,7 @@ impl Generator {
             use std::str::FromStr;
             use std::string::ToString;
             use strum_macros::{Display, EnumString};
-            use chrono::DateTime;
+            use chrono::{DateTime, Local};
                     };
 
             // Create module file for this database

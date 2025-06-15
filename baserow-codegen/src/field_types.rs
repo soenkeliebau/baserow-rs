@@ -249,7 +249,10 @@ pub struct SelectOption {
 }
 
 pub fn cleanup_name(dirty_name: &str) -> String {
-    let first_stage = dirty_name.replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '/', '@'][..], "" );
+    let first_stage = dirty_name.replace(
+        &['(', ')', ',', '\"', '.', ';', ':', '\'', '/', '@'][..],
+        "",
+    );
     // Check if starts with number, that is not a legal rust identifier
     if first_stage[0..1].parse::<u8>().is_ok() {
         format!("a{}", first_stage)
@@ -378,8 +381,10 @@ impl TableField {
                 let mut variants = TokenStream::new();
                 for option in select_options {
                     let serialized_name = &option.value;
-                    let rust_variant_name =
-                        format_ident!("{}", cleanup_name(&serialized_name.to_case(Pascal)).replace(' ', ""));
+                    let rust_variant_name = format_ident!(
+                        "{}",
+                        cleanup_name(&serialized_name.to_case(Pascal)).replace(' ', "")
+                    );
                     variants.extend(quote! {
                         #[serde(rename = #serialized_name)]
                         #[strum(serialize = #serialized_name)]
@@ -387,8 +392,11 @@ impl TableField {
                     });
                 }
 
-                let rust_name =
-                    cleanup_name(&format!("{}{}", table_name.to_case(Pascal), self.get_original_name().to_case(Pascal)));
+                let rust_name = cleanup_name(&format!(
+                    "{}{}",
+                    table_name.to_case(Pascal),
+                    self.get_original_name().to_case(Pascal)
+                ));
                 let rust_name = format_ident!("{}", rust_name);
                 Some(quote! {
                     #[derive(Serialize, Deserialize, Debug, Clone, EnumString, Display)]
@@ -398,6 +406,10 @@ impl TableField {
                     }
                 })
             }
+            TableField::LinkRow {
+                link_row_table_primary_field,
+                ..
+            } => link_row_table_primary_field.get_extra_structs(table_name),
             _ => None,
         }
     }
@@ -450,11 +462,16 @@ impl TableField {
             TableField::CreatedOn { .. } => "String".to_string(),
             TableField::CreatedBy { .. } => "String".to_string(),
             TableField::Duration { .. } => "Duration".to_string(),
-            TableField::LinkRow { .. } => "String".to_string(),
+            TableField::LinkRow {
+                link_row_table_primary_field,
+                ..
+            } => link_row_table_primary_field.get_rust_type(table_name),
             TableField::File { .. } => "String".to_string(),
-            TableField::SingleSelect { .. } => {
-                cleanup_name(&format!("{}{}", table_name.to_case(Pascal), self.get_original_name().to_case(Pascal)))
-            },
+            TableField::SingleSelect { .. } => cleanup_name(&format!(
+                "{}{}",
+                table_name.to_case(Pascal),
+                self.get_original_name().to_case(Pascal)
+            )),
             TableField::MultipleSelect { .. } => "String".to_string(),
             TableField::PhoneNumber { .. } => "String".to_string(),
             TableField::Formula { .. } => "String".to_string(),
@@ -537,9 +554,9 @@ impl TableField {
 #[cfg(test)]
 mod tests {
     use crate::field_types::TableField;
-    use std::fs;
     use convert_case::Case::Pascal;
     use convert_case::{Case, Casing};
+    use std::fs;
 
     #[test]
     fn test_deserialize() {
@@ -555,13 +572,16 @@ mod tests {
         let json: Vec<TableField> =
             serde_json::from_str(&contents).expect("file should be proper JSON");
     }
-    
+
     #[test]
     fn test_to_case() {
         let input = "jim.halfpenny@stackable.tech";
-        
-        let first= input.replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '/', '@'][..], " ");
-        
+
+        let first = input.replace(
+            &['(', ')', ',', '\"', '.', ';', ':', '\'', '/', '@'][..],
+            " ",
+        );
+
         println!("{}", first.to_case(Pascal));
     }
 }
