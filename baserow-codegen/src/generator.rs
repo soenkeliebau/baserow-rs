@@ -7,9 +7,11 @@ use quote::{format_ident, quote};
 use reqwest::Client as ReqwestClient;
 use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
+use std::fmt::format;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use convert_case::pattern::lowercase;
 
 static LIST_TABLES_URL: &str = "https://api.baserow.io/api/database/tables/all-tables/";
 static LIST_TABLE_FIELDS_URL: &str = "https://api.baserow.io/api/database/fields/table/";
@@ -128,6 +130,9 @@ impl Generator {
 
     pub async fn generate_structs(&self, databases: &Vec<Database>, target_path: &Path) {
         let mut mod_file = File::create(target_path.join("mod.rs")).expect("Unable to create file");
+        let module_crate_path = target_path.to_str().unwrap().replace("/", "::");
+        // Build tests in mod file along the way
+        let mut tests = TokenStream::new();
 
         // Pull list of all tables accessible with our token, these will be across multiple databases
         // in order to not do this multiple times we'll filter down to the tables we are interested
@@ -136,11 +141,14 @@ impl Generator {
 
         for database in databases {
             let module_name = cleanup_name(&database.name).to_case(Snake);
+
             // Write entry for file in mod.rs
             mod_file
                 .write_all(format!("pub mod {};", module_name).as_bytes())
                 .unwrap();
             mod_file.write_all("\n".as_bytes()).unwrap();
+
+            let use_clause = format_ident!("crate::{module_crate_path}::{module_name}::*");
 
             let mut structs = quote! {
             use baserow_client::client::{BaserowObject, Identifier};
@@ -200,12 +208,39 @@ impl Generator {
                             #primary_field_id.to_string()
                         }
                 }});
+
+                let testname = format_ident!("test_list_{}", table.get_struct_name().to_lowercase());
+                // Generate tests
+                let tests = quote! {
+                    #[tokio::test]
+                async fn #testname() {
+                    let client = Client::new(&std::env::var("BASEROW_TOKEN").unwrap(), None).unwrap();
+
+                    match client.list::<#struct_name>().await {
+                        Ok(result) => {
+                            println!("Got {} #struct_name", result.len());
+                            for schedule in &result {
+                                println!("{:?}", schedule);
+                            }
+                        },
+                        Err(e) => {assert!(false)},
+                    }}
+                            };
+
+                mod_file
+                    .write_all(
+                        prettyplease::unparse(&syn::parse_file(&structs.to_string()).unwrap())
+                            .as_bytes(),
+                    )
+                    .unwrap();
             }
             structs.extend(generate_deserializers());
 
             // Print formated code to stdout
             let syntax_tree = syn::parse_file(&structs.to_string()).unwrap();
-            code_file.write_all(prettyplease::unparse(&syntax_tree).as_bytes()).unwrap();
+            code_file
+                .write_all(prettyplease::unparse(&syntax_tree).as_bytes())
+                .unwrap();
             code_file.flush().unwrap();
             mod_file.flush().unwrap();
         }
